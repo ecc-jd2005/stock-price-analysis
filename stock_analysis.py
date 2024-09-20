@@ -2,50 +2,31 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 
-ticker = input("Enter the stock ticker symbol (e.g., HOG for Harley-Davidson): ").strip().upper()
-data = yf.download(ticker, start="2010-01-01", end="2023-09-01")
+ticker = input("Enter the stock ticker symbol (e.g., HOG for Harley Davidson, LMT for Lockheed Martin): ")
 
-if data.empty:
-    print("No data found for the ticker symbol. Please check the symbol and try again.")
-else:
-    print(f"Analyzing the stock data for {ticker}.")
-    plt.figure(figsize=(14, 7))
-    plt.plot(data['Close'], label=f'{ticker} Closing Price', color='blue')
-    plt.title(f'{ticker} Stock Price (2010-2023)')
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.legend()
-    plt.show()
+data = yf.download(ticker, start="2010-01-01", end="2024-01-01")
 
-    data['Returns'] = data['Close'].pct_change()
-    data.dropna(inplace=True)
-    data['Future Price'] = data['Close'].shift(-1)
-    data['Target'] = np.where(data['Future Price'] > data['Close'], 1, 0)
-    data.dropna(inplace=True)
+data['Date'] = data.index
+data['Days'] = (data['Date'] - data['Date'].min()).dt.days
+X = data[['Days']]
+y = data['Close']
 
-    X = data[['Open', 'High', 'Low', 'Close', 'Volume']]
-    y = data['Target']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model = LinearRegression()
+model.fit(X_train, y_train)
 
-    model = LinearRegression()
-    model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
 
-    predictions = model.predict(X_test)
-    predictions = [1 if x > 0.5 else 0 for x in predictions]
-
-    mse = mean_squared_error(y_test, predictions)
-    print(f'Mean Squared Error: {mse}')
-
-    plt.figure(figsize=(14, 7))
-    sns.lineplot(data=data[-100:], x='Date', y='Close', label='Actual Price', color='blue')
-    plt.title('Predicted vs Actual Price')
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.legend()
-    plt.show()
+plt.figure(figsize=(10,5))
+plt.plot(data['Date'], data['Close'], label='Actual Price', color='blue')
+plt.plot(data.iloc[len(X_train):]['Date'], y_pred, label='Predicted Price', color='red', linestyle='dashed')
+plt.title(f'{ticker} Predicted vs Actual Price')
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.legend()
+plt.show()
